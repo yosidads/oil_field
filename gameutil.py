@@ -80,3 +80,9 @@ class GameConstUtil():
     @classmethod
     def get_num_of_oil_derrick(cls):        
         return 3
+
+    @classmethod
+    def get_cost(cls, activity_desc):        
+        game_cost_dic = {"SPY": 5}
+        
+        return game_cost_dic[activity_desc]            

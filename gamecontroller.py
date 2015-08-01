@@ -4,6 +4,7 @@ import pygame
 from pygame.locals import *
 from gameutil import *
 from gamestate import *
+from random import randint
 
 class GameController():
     def __init__(self):
@@ -489,47 +490,64 @@ class StrategyExecController(GameController):
         #Spy Menu Message    
         ##############################
         elif self._game_control_phase == self.PH_SPY:
-            #Determine the countries which you can attack.
-
-            target_countries = []
-            for n in range(len(countries)):
-                if not countries[n]["DEFEATED"] and not countries[n]["HUMAN_CONTROLLED"]: 
-                        target_countries.append(n)
-
-            print "target_countries" 
-            print target_countries
-            msg = ""
-            for n in range(len(target_countries)):
-                print countries[n]["NAME"]
-                msg += str(n) + ":" + countries[target_countries[n]]["NAME"] + " "
-                    
-            message_text = "Which country do you want to have your spy infiltrate  (" + msg +  ", 99:Cancel)? " 
-            self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("NORMAL")}
-            screen.set_strategy_result(self._result)
-            
-            if game_state.get_keyinput_confirmed_flag():
-                if len(game_state.get_keyinput_confirmed()) == 0:   #Just a CR without entering any number
-                    message_text = "Hey!" 
-                    self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("ERROR")}
-                    screen.set_strategy_result(self._result)
-                    self._wait_flag = True
-                else:    
-                    input_value = int(game_state.get_keyinput_confirmed())
-                    #0:Cancel
-                    if input_value == 99:
-                        self._game_control_phase = self.PH_NORMAL
-                    #Valid Input
-                    elif input_value in target_countries:
-                        self._game_control_phase = self.PH_NORMAL
-                        message_text = "..." 
-                        self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("NORMAL")}
-                        screen.set_strategy_result(self._result)                        
+            #Spying costs money.
+            if country["MONEY"] < GameConstUtil.get_cost("SPY"):
+                message_text = "You don't have enough moeny to spy!" 
+                self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("ERROR")}
+                screen.set_strategy_result(self._result)
+                self._wait_flag = True
+            else:    
+                #Determine the countries which you can spy
+                target_countries = []
+                for n in range(len(countries)):
+                    if not countries[n]["DEFEATED"] and not countries[n]["HUMAN_CONTROLLED"]: 
+                            target_countries.append(n)
+    
+                print target_countries
+                msg = ""
+                for n in range(len(target_countries)):
+                    msg += str(n) + ":" + countries[target_countries[n]]["NAME"] + " "
+                        
+                message_text = "Which country will you have your spy infiltrate  (" + msg +  ", 99:Cancel)? " 
+                self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("NORMAL")}
+                screen.set_strategy_result(self._result)
+                
+                if game_state.get_keyinput_confirmed_flag():
+                    if len(game_state.get_keyinput_confirmed()) == 0:   #Just a CR without entering any number
+                        message_text = "Hey!" 
+                        self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("ERROR")}
+                        screen.set_strategy_result(self._result)
                         self._wait_flag = True
-                        self._status_reserved = GameConstUtil.get_game_status("BIG_MAP")
-                        self._ready_to_next_flag = True
-
+                    else:    
+                        input_value = int(game_state.get_keyinput_confirmed())
+                        #0:Cancel
+                        if input_value == 99:
+                            self._game_control_phase = self.PH_NORMAL
+                        #Valid Input
+                        elif input_value in target_countries:
+                            self._game_control_phase = self.PH_NORMAL
+                            
+                            #Check if Spying is successful
+                            i = random.randint(0, 2) % 2
+                            if i == 0: #success                            
+                                message_text = "Mission Complete!" 
+                                self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("NORMAL")}
+                                screen.set_strategy_result(self._result)                        
+                                self._wait_flag = True
+                                
+                                #To change to Spy screen, set the game status directly without incrementing turn.    
+                                game_state.set_spied_country(countries[target_countries[input_value]])
+                                game_state.set_status(GameConstUtil.get_game_status("STRATEGY_SPY"))
+                            else:
+                                message_text = "Mission Incomplete! Our agent was caught!" 
+                                self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("ERROR")}
+                                screen.set_strategy_result(self._result)
+                                self._wait_flag = True
+                            
+                            country["MONEY"] -= GameConstUtil.get_cost("SPY")
+                            
        ##############################
-        #Buy Plane Menu Message    
+        #Sell Oil Menu Message    
         ##############################
         elif self._game_control_phase == self.PH_SELL_OIL:
             message_text = "How much will you sell (0-" + str(country["OIL"]) + ", 0:Cancel)? " 
@@ -605,7 +623,52 @@ class StrategyExecController(GameController):
                 self._ready_to_next_flag = True
                 #print "here"
                 #self._increment_turn(game_state)            
-                              
+
+class StrategySpyController(GameController):
+    
+    #GAME_CONTROL_PHASE
+    PH_NORMAL = (0)
+    
+    def __init__(self):
+        GameController.__init__(self)
+        self._game_control_phase = self.PH_NORMAL
+        self._result = {"MESSAGE":"", "RESULT":GameConstUtil.get_game_event("NORMAL")}
+        self._status_reserved = GameConstUtil.get_game_status("STRATEGY_EXEC") 
+        self._wait_flag = False
+        self._ready_to_next_flag = False
+        #self._game_status = GameConstUtil.get_game_status("STRATEGY_EXEC")
+
+    def _increment_turn(self, game_state):
+
+        if self._ready_to_next_flag:
+            self._ready_to_next_flag = False
+            game_state.set_status(self._status_reserved)
+             
+    def control_scene(self, screen, game_state):
+
+        #if self._result["RESULT"] == GameConstUtil.get_game_event("ERROR"):
+        if self._wait_flag:
+            pygame.time.wait(GameConstUtil.get_wait_millisec())
+        
+        self._increment_turn(game_state)
+
+        if self._game_control_phase == self.PH_NORMAL:
+            message_text = "Here is the confidential report about this country. Do you want to return (1=Yes)? "   
+            self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("NORMAL")}
+            screen.set_strategy_result(self._result)
+            
+            if game_state.get_keyinput_confirmed_flag():
+                #1:Return
+                if game_state.get_keyinput_confirmed() == str(1):
+                    self._game_control_phase = self.PH_NORMAL
+                    self._status_reserved = GameConstUtil.get_game_status("STRATEGY_EXEC")
+                    self._ready_to_next_flag = True
+                else:
+                    message_text = "Hey!" 
+                    self._result = {"MESSAGE": message_text, "RESULT":GameConstUtil.get_game_event("ERROR")}
+                    self._wait_flag = True
+                    screen.set_strategy_result(self._result)
+
 class StrategyCommand():
     def __init__(self):
         pass

@@ -254,7 +254,7 @@ class StrategyExecScreen(GameScreen):
             self._sprite_oil_derrick_in_search.append(sprite)
         self._sprite_oil_derrick_in_search_idx = 0
         
-    def _draw_backdrop(self, screen, game_state):
+    def _draw_backdrop(self, screen, game_state, country):
         for n in range(GameConstUtil.get_map_size() + 1): 
             #Horizontal Line
             pygame.draw.line(screen, GameConstUtil.get_color("WHITE"), (GameConstUtil.get_scr_map_x(), GameConstUtil.get_scr_map_y() + (GameConstUtil.get_sprite_size()+2) * n), \
@@ -275,7 +275,7 @@ class StrategyExecScreen(GameScreen):
             vertical_space = vertical_font.render(vertical_num, False, GameConstUtil.get_color("WHITE"))
             screen.blit(vertical_space, (GameConstUtil.get_scr_map_x() - 10, GameConstUtil.get_scr_map_y() + 10 + (GameConstUtil.get_sprite_size()+2) * n))         
             
-        country = game_state.get_countries()[game_state.get_turn()]
+        #country = game_state.get_countries()[game_state.get_turn()]
         country_map = country["COUNTRY_MAP"]
 
         #Place objects. Add 1 pixel so that the object does not overwrite a vertical or a horizontal line 
@@ -296,8 +296,8 @@ class StrategyExecScreen(GameScreen):
         
         self._sprite_oil_derrick_in_search_idx = 0            
 
-    def _draw_info_screen(self, screen, game_state):
-        country = game_state.get_countries()[game_state.get_turn()]
+    def _draw_info_screen(self, screen, game_state, country):
+        #country = game_state.get_countries()[game_state.get_turn()]
         #print country["NAME"]
  
         country_name = "< " + country["NAME"] + " >"
@@ -317,7 +317,7 @@ class StrategyExecScreen(GameScreen):
                 if map_object.get_object_type() == GameConstUtil.get_game_object("OIL_DERRICK_ACTIVE") \
                     or map_object.get_object_type() == GameConstUtil.get_game_object("OIL_DERRICK_IN_SEARCH"):
                     reserved_qty = str(map_object.get_proven_reserved()) if map_object.get_object_type() == GameConstUtil.get_game_object("OIL_DERRICK_ACTIVE") else "In Search"
-                    oil_derrick_info += "Oil Derrick_" + str(i) + " Defense:\nProven Oil Reserves:\n"
+                    oil_derrick_info += "Oil Derrick_" + str(i) + " Defense:\nOil Reserves:\n"
                     oil_derrick_info2 += str(map_object.get_defense()) + "\n" + reserved_qty + "\n"  
                     i += 1
 
@@ -393,14 +393,18 @@ class StrategyExecScreen(GameScreen):
     # Public methods            
     ############################################################################
     def draw(self, screen, game_state):
-        self._draw_backdrop(screen, game_state)
-        self._draw_info_screen(screen, game_state)
+        country = game_state.get_countries()[game_state.get_turn()]
+        self._draw_backdrop(screen, game_state, country)
+        self._draw_info_screen(screen, game_state, country)
         self._draw_command_screen(screen, game_state)
 
 class StrategySpyScreen(StrategyExecScreen):
     
-    def _draw_info_screen(self, screen, game_state):
-        pass
+    def draw(self, screen, game_state):
+        country = game_state.get_spied_country()
+        self._draw_backdrop(screen, game_state, country)
+        self._draw_info_screen(screen, game_state, country)
+        self._draw_command_screen(screen, game_state)
 
 class StrategyOilDerrickScreen(StrategyExecScreen):
     

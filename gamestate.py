@@ -171,6 +171,12 @@ class GameState:
     def get_sound_to_play(self):
         return self._sound_to_play
     
+    def set_spied_country(self, spied_country):
+        self._spied_country = spied_country
+        
+    def get_spied_country(self):
+        return self._spied_country
+        
     ############################
     # Key input-related
     ############################

@@ -42,10 +42,12 @@ class GameLauncher:
         self._start_screen = StartScreen()
         self._big_map_screen = BigMapScreen()
         self._strategy_exec_screen = StrategyExecScreen()
+        self._strategy_spy_screen = StrategySpyScreen()
 
         #Game Controllers           
         self._big_map_controller = BigMapController()
         self._strategy_exec_controller = StrategyExecController()
+        self._strategy_spy_controller = StrategySpyController()
 
     def _get_screen(self):
         status = self.game_state.get_status()
@@ -55,6 +57,8 @@ class GameLauncher:
             return self._big_map_screen
         elif status == GameConstUtil.get_game_status("STRATEGY_EXEC"):
             return self._strategy_exec_screen        
+        elif status == GameConstUtil.get_game_status("STRATEGY_SPY"):
+            return self._strategy_spy_screen        
 
     def _get_game_controller(self):
         status = self.game_state.get_status()
@@ -64,6 +68,8 @@ class GameLauncher:
             return self._big_map_controller
         elif status == GameConstUtil.get_game_status("STRATEGY_EXEC"):
             return self._strategy_exec_controller        
+        elif status == GameConstUtil.get_game_status("STRATEGY_SPY"):
+            return self._strategy_spy_controller        
         
     def _update(self):
         #Key Input Control
