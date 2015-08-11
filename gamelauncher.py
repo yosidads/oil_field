@@ -13,8 +13,8 @@ class GameLauncher:
     
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode(GameConstUtil.get_scr_rect().size, FULLSCREEN)
-        #self.screen = pygame.display.set_mode(GameConstUtil.get_scr_rect().size)
+        #self.screen = pygame.display.set_mode(GameConstUtil.get_scr_rect().size, FULLSCREEN)
+        self.screen = pygame.display.set_mode(GameConstUtil.get_scr_rect().size)
         pygame.display.set_caption(GameConstUtil.get_game_title())
 
         self._cur_str = []

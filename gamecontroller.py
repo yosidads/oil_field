@@ -11,12 +11,6 @@ class GameController():
         self._game_control_phase = ''
         self._strategy_command = StrategyCommand()
     
-    def _set_game_control_phase(self, game_control_phase):
-        self._game_control_phase = game_control_phase
-    
-    def _get_game_control_phase(self):
-        return self._game_control_phase
-    
     def control_scene(self, screen, game_state):
         pass
 
@@ -24,40 +18,77 @@ class BigMapController(GameController):
 
     def __init__(self):
         GameController.__init__(self)
-        self._strategy_acceptable_flag = True
+        self._game_control_phase = self.PH_NORMAL
+        self._very_first_turn_flag = True
+        #self._strategy_acceptable_flag = True
 
     #GAME_CONTROL_PHASE
-    PH_NORMAL, PH_FIRST_MESSAGE, PH_ADD_ARMY, PH_BUY_PLANE, PH_BUY_ICBM, \
-    PH_ATTACH, PH_BOMB, PH_ICBM, PH_SPY, PH_SELL_OIL, PH_OIL_DERRICK, PH_SPEECH \
-            = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)
+    PH_NORMAL, PH_ELECTION = (0, 1)
     
     def control_scene(self, screen, game_state):
         
         countries = game_state.get_countries()
-
-        if game_state.get_status() == GameConstUtil.get_game_status("BIG_MAP"):
+        
+        if self._game_control_phase == self.PH_NORMAL:
+            print "### 1"
             if screen.get_strategy_acceptable_flag():
+                print "### 2"
+                #Increment the turn to start the strategy for the country.
+                #However, the very first turn of the game should not increment the turn.
+                if not (self._very_first_turn_flag):
+                    print "### 3"
+                    #If the strategy execution on BigMap for the player is over, then strategy screen should start.  
+                    if countries[game_state.get_turn()]["HUMAN_CONTROLLED"] and not (game_state.get_strategy_done_flag()):
+                        game_state.set_status(GameConstUtil.get_game_status("STRATEGY_EXEC"))
+                        
+                    else:
+                        game_state.set_strategy_done_flag(False)
+                        game_state.increment_turn()
+
+                self._very_first_turn_flag = False
+                    
                 ################################################################
                 #Strategy Execution....
                 ################################################################
-                if countries[game_state.get_turn()]["HUMAN_CONTROLLED"]:
-                    result = {"MESSAGE": "", "RESULT":GameConstUtil.get_game_event("PLAYER_TURN")}
+                country = countries[game_state.get_turn()]
+                if country["HUMAN_CONTROLLED"]:
+                    print "### 4"
+                    game_date = game_state.get_game_date()
+                    election_date = game_state.get_election_date()
+                    #print "game_year %d | election year %d | game season %d | election season %d" % (game_date["YEAR"], election_date["YEAR"], game_date["SEASON"], election_date["SEASON"])
+                    
+                    #Election
+                    if game_date["YEAR"] == election_date["YEAR"] and game_date["SEASON"] == election_date["SEASON"]:
+                        your_vote = round(country["SUPPORT_RATE"] * random.uniform(0.6, 1.2), 1)
+                        if your_vote > 100: 
+                            your_vote = 100
+                        opponent_vote = round((100 - your_vote) * random.uniform(0.4, 0.8), 1)
+                        if your_vote == opponent_vote:
+                            your_vote += 1.0
+                        invalid_vote = 100 - your_vote - opponent_vote
+                        if your_vote < opponent_vote:
+                            announcement_msg = "You lost... You are no longer our president."
+                        else:
+                            announcement_msg = "Congratulations! You have another 4 years."
+                            
+                        msg = "The election has started!\n" \
+                                + "---Election Result---\nYour opponent.........." + str(opponent_vote) + "%\n" \
+                                + "Your vote.........." + str(your_vote) + "%\n" \
+                                + "Invalid vote.........." + str(invalid_vote) + "%\n" \
+                                + announcement_msg 
+                        result = {"MESSAGE": msg, "RESULT":GameConstUtil.get_game_event("ELECTION")}
+                        
+                        #self._game_control_phase = self.PH_ELECTION
+                    else:
+                        # Check if Oil is found in Oil Derrick    
+                        result = {"MESSAGE": "", "RESULT":GameConstUtil.get_game_event("PLAYER_TURN")}
+                #Non-human players        
                 else:
+                    print "### 5"
                     result = {"MESSAGE": "Strategy in execution..\nThis is a 2nd line.\nthis is a 3rd line.", "RESULT":GameConstUtil.get_game_event("NORMAL")}
-                
+                    
                 screen.set_strategy_result(result)
-        
-            if screen.get_ready_to_next_flag():
-                if countries[game_state.get_turn()]["HUMAN_CONTROLLED"]:
-                    screen.set_strategy_acceptable_flag(True)
-                    screen.set_ready_to_next_flag(False)
-                    game_state.set_status(GameConstUtil.get_game_status("STRATEGY_EXEC"))
-                    print "BIG_MAP:Turn %d" % game_state.get_turn()
-                else:
-                    screen.set_strategy_acceptable_flag(True)
-                    screen.set_ready_to_next_flag(False)
-                    game_state.increment_turn()
-
+                    
 class StrategyExecController(GameController):
     
     #GAME_CONTROL_PHASE
@@ -78,9 +109,7 @@ class StrategyExecController(GameController):
 
         if self._ready_to_next_flag:
             country_map = game_state.get_countries()[game_state.get_turn()]["COUNTRY_MAP"]
-            print "country_turn %d" % game_state.get_turn()
             #If the number of oil derricks is short, placing a new oil derrick.
-            print "Num of Active Derrick %d" % country_map.get_num_of_active_oil_derrick()
             if country_map.get_num_of_active_oil_derrick() < GameConstUtil.get_num_of_oil_derrick():
                 #self._status_reserved = game_state.get_status()
                 self._game_control_phase = self.PH_OIL_DERRICK
@@ -88,9 +117,10 @@ class StrategyExecController(GameController):
                 #game_state.set_status(GameConstUtil.get_game_status("STRATEGY_EXEC"))
             else:
                 self._ready_to_next_flag = False
-                print "###HERE: stauts_reserved=%d" % self._status_reserved
+                #print "###HERE: stauts_reserved=%d" % self._status_reserved
                 game_state.set_status(self._status_reserved)
-                game_state.increment_turn()
+                #game_state.increment_turn()
+                game_state.set_strategy_done_flag(True)
          
     def control_scene(self, screen, game_state):
         
@@ -99,7 +129,7 @@ class StrategyExecController(GameController):
 
         #if self._result["RESULT"] == GameConstUtil.get_game_event("ERROR"):
         if self._wait_flag:
-            pygame.time.wait(GameConstUtil.get_wait_millisec())
+            pygame.time.wait(GameConstUtil.get_wait_millisec("NORMAL"))
         
         self._increment_turn(game_state)
         
@@ -368,11 +398,11 @@ class StrategyExecController(GameController):
                 if bordering_countires[n] == 3 and not countries[3]["DEFEATED"] and not countries[3]["HUMAN_CONTROLLED"]: 
                     if 3 not in target_countries:
                         target_countries.append(3)
-            print "target_countries" 
-            print target_countries
+            #print "target_countries" 
+            #print target_countries
             msg = ""
             for n in range(len(target_countries)):
-                print countries[n]["NAME"]
+                #print countries[n]["NAME"]
                 msg += str(n) + ":" + countries[target_countries[n]]["NAME"] + " "
                     
             message_text = "To which country will you send your army (" + msg +  ", 99:Cancel)? " 
@@ -411,11 +441,11 @@ class StrategyExecController(GameController):
                 if not countries[n]["DEFEATED"] and not countries[n]["HUMAN_CONTROLLED"]: 
                         target_countries.append(n)
 
-            print "target_countries" 
-            print target_countries
+            #print "target_countries" 
+            #print target_countries
             msg = ""
             for n in range(len(target_countries)):
-                print countries[n]["NAME"]
+                #print countries[n]["NAME"]
                 msg += str(n) + ":" + countries[target_countries[n]]["NAME"] + " "
                     
             message_text = "Which country will you bombard (" + msg +  ", 99:Cancel)? " 
@@ -454,11 +484,11 @@ class StrategyExecController(GameController):
                 if not countries[n]["DEFEATED"] and not countries[n]["HUMAN_CONTROLLED"]: 
                         target_countries.append(n)
 
-            print "target_countries" 
-            print target_countries
+            #print "target_countries" 
+            #print target_countries
             msg = ""
             for n in range(len(target_countries)):
-                print countries[n]["NAME"]
+                #print countries[n]["NAME"]
                 msg += str(n) + ":" + countries[target_countries[n]]["NAME"] + " "
                     
             message_text = "Which country will you destroy with the ICBM (" + msg +  ", 99:Cancel)? " 
@@ -503,7 +533,7 @@ class StrategyExecController(GameController):
                     if not countries[n]["DEFEATED"] and not countries[n]["HUMAN_CONTROLLED"]: 
                             target_countries.append(n)
     
-                print target_countries
+                #print target_countries
                 msg = ""
                 for n in range(len(target_countries)):
                     msg += str(n) + ":" + countries[target_countries[n]]["NAME"] + " "
@@ -648,7 +678,7 @@ class StrategySpyController(GameController):
 
         #if self._result["RESULT"] == GameConstUtil.get_game_event("ERROR"):
         if self._wait_flag:
-            pygame.time.wait(GameConstUtil.get_wait_millisec())
+            pygame.time.wait(GameConstUtil.get_wait_millisec("NORMAL"))
         
         self._increment_turn(game_state)
 
@@ -677,7 +707,7 @@ class StrategyCommand():
         country = game_state.get_countries()[game_state.get_turn()]
         
         country["SUPPORT_RATE"] += random.randint(4, 7) 
-        print country["SUPPORT_RATE"]
+        #print country["SUPPORT_RATE"]
         
     def change_tax_rate(self, game_state, new_rate):
         country = game_state.get_countries()[game_state.get_turn()]

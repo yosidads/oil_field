@@ -25,7 +25,8 @@ class GameState:
         
         #Game conditions related
         self._game_date = {"YEAR":GameConstUtil.get_game_start_year(), "SEASON":0}
-        self._election_date = {"YEAR":GameConstUtil.get_game_start_year() + 1, "SEASON":2}
+        #self._election_date = {"YEAR":GameConstUtil.get_game_start_year() + 1, "SEASON":2}
+        self._election_date = {"YEAR":GameConstUtil.get_game_start_year(), "SEASON":3}
         self._init_countries()
         self._init_rate()
 
@@ -38,21 +39,21 @@ class GameState:
         country_1 = {"NAME":"Whalystan", "COLOR":GameConstUtil.get_color("CYAN"), "DEFEATED":False, "HUMAN_CONTROLLED":False, "COUNTRY_NUM": 1, "CONQUERED_BY": 1, "BORDERING_COUNTRIES":[0, 2]}
         country_2 = {"NAME":"Pinkzamia", "COLOR":GameConstUtil.get_color("PURPLE"), "DEFEATED":False, "HUMAN_CONTROLLED":False, "COUNTRY_NUM": 2, "CONQUERED_BY": 2, "BORDERING_COUNTRIES":[0, 1, 3]}
         country_3 = {"NAME":"Pikaland", "COLOR":GameConstUtil.get_color("YELLOW"), "DEFEATED":False, "HUMAN_CONTROLLED":False, "COUNTRY_NUM": 3, "CONQUERED_BY": 3, "BORDERING_COUNTRIES":[0, 2]}
-        self.countries = [country_0, country_1, country_2, country_3]
+        self._countries = [country_0, country_1, country_2, country_3]
         
         #Select a country controlled by the player.
-        player_country = random.randint(0, len(self.countries) - 1)
-        self.countries[player_country]["HUMAN_CONTROLLED"] = True
+        player_country = random.randint(0, len(self._countries) - 1)
+        self._countries[player_country]["HUMAN_CONTROLLED"] = True
         #print "player_country= %d" % player_country
         
         #Set turn so that a human-played country takes turns at the last. 
-        if player_country == len(self.countries) - 1:
+        if player_country == len(self._countries) - 1:
             self._turn = 0
         else:
             self._turn = player_country + 1        
         
-        for n in range(len(self.countries)):
-            self._init_nation_resources(self.countries[n]) 
+        for n in range(len(self._countries)):
+            self._init_nation_resources(self._countries[n]) 
         #print "###: _init_countries: COMPLETED"  
           
     def _init_nation_resources(self, country):
@@ -64,14 +65,14 @@ class GameState:
         if country["HUMAN_CONTROLLED"] == True:
             country["SUPPORT_RATE"] = random.randint(40, 55)
             country["MONEY"] = random.randint(100, 200)
-            country["OIL"] = random.randint(5, 10)
+            country["OIL"] = random.randint(10, 30)
             country["COUNTRY_MAP"].get_capital().set_defense(random.randint(30, 50))
             country["ARMY"] = random.randint(20, 30)
             country["PLANE"] = random.randint(5, 10)
         else:
             country["SUPPORT_RATE"] = random.randint(45, 60)
             country["MONEY"] = random.randint(200, 250)
-            country["OIL"] = random.randint(15, 20)
+            country["OIL"] = random.randint(30, 50)
             country["COUNTRY_MAP"].get_capital().set_defense(random.randint(50, 60))
             country["ARMY"] = random.randint(30, 40)
             country["PLANE"] = random.randint(8, 12)
@@ -107,13 +108,32 @@ class GameState:
     def _increment_game_date(self):
         self._game_date["SEASON"] += 1
         if self._game_date["SEASON"] > 3:
-            self._update_nation_resources()
+            #New year
+            #self._update_nation_resources_yearly()
             self._game_date["YEAR"] += 1
             self._game_date["SEASON"] = 0
-    
+
     def _update_nation_resources(self):
-        pass
+        for n in range(len(self._countries)):
+            country = self._countries[n]
+
+            country["SUPPORT_RATE"] += random.randint(-2, 2)
+            #yearly update
+            if self._game_date["SEASON"] == 0:
+                country["MONEY"] += int(float(country["TAX_RATE"]) / 100 * 400 * random.uniform(0.8, 1.2))
+                country["OIL"] += random.randint(0, 20)
+                if not(country["HUMAN_CONTROLLED"]):
+                    country["MONEY"] += 50
     
+    def _increment_oil_derrick_age(self):
+        for n in range(len(self._countries)):
+            map_objects = self._countries[n]["COUNTRY_MAP"].get_map_objects()
+            
+            for m in range(len(map_objects)):
+                map_object = map_objects[m]
+                if map_object.get_object_type() == GameConstUtil.get_game_object("OIL_DERRICK_IN_SEARCH"):
+                    map_object.set_age(map_object.get_age() + 1)       
+        
     ############################################################################
     # Public methods
     ############################################################################
@@ -131,23 +151,29 @@ class GameState:
         return self._election_date
     
     def set_countries(self, countries):
-        self.countries = countries
+        self._countries = countries
         
     def get_countries(self):
-        return self.countries    
+        return self._countries    
     
     def increment_turn(self):
-        if self.countries[self._turn]["HUMAN_CONTROLLED"]:
+        if self._countries[self._turn]["HUMAN_CONTROLLED"]:
+            #change game season and year
             self._increment_game_date()
+            #change new oil exchange rage, price.
             self._set_rate()
+            #update nation resources
+            self._update_nation_resources()
+            #increment age of active oil derrick.
+            self._increment_oil_derrick_age()
         
         # Decides the next turn#. Fixed Turn# is assigned in each country.
         while True:
             self._turn += 1
-            if self._turn > len(self.countries) - 1:
+            if self._turn > len(self._countries) - 1:
                 self._turn = 0
             #If the country is already defeated, skip it
-            if self.countries[self._turn]["DEFEATED"] == False:
+            if self._countries[self._turn]["DEFEATED"] == False:
                 break 
         
     def get_turn(self):
@@ -176,7 +202,19 @@ class GameState:
         
     def get_spied_country(self):
         return self._spied_country
+    
+    def set_strategy_done_flag(self, flag):
+        self._strategy_done_flag = flag
         
+    def get_strategy_done_flag(self):
+        return self._strategy_done_flag
+        
+    def set_screen_message_wait(self, wait_millisec):
+        self._screen_message_wait = wait_millisec
+        
+    def get_screen_message_wait(self):
+        return self._screen_message_wait
+
     ############################
     # Key input-related
     ############################
@@ -210,6 +248,7 @@ class MapObject:
         self._object_state = None
         self._defense = 50 #by default
         self._proven_reserves = 0 #by default
+        self._age = 0
             
     def get_object_type(self):
         return self._object_type
@@ -249,7 +288,13 @@ class MapObject:
     
     def get_proven_reserves(self):
         return self._proven_reserves
-
+    
+    def set_age(self, age_num):
+        self._age = age_num
+    
+    def get_age(self):
+        return self._age
+    
 class CountryMap:
     '''
     Represents a country whole map.
@@ -295,7 +340,7 @@ class CountryMap:
             map_object = self._map_objects[n]
             if map_object.get_object_type() == GameConstUtil.get_game_object("CAPITAL"):
                 return map_object
-        print "###get_capital: Capital was not found."
+        #print "###get_capital: Capital was not found."
 
     def get_num_of_active_oil_derrick(self):
         num = 0

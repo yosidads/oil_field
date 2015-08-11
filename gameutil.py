@@ -19,7 +19,7 @@ class GameConstUtil():
     @classmethod
     def get_game_event(cls, event):        
         game_event_dic = {"NORMAL":0, "WAR_OUTBREAK":1, "OIL_FOUND":2, "COUP_OUTBREAK":3 \
-                           , "ICBM_LAUNCH":4, "PLAYER_TURN":5, "ERROR":6}
+                           , "ICBM_LAUNCH":4, "PLAYER_TURN":5, "ERROR":6, "ELECTION":7}
         
         return game_event_dic[event]            
    
@@ -33,9 +33,14 @@ class GameConstUtil():
     
     #game settings
     #WAIT_MILLISEC = 100
+    #@classmethod
+    #def get_wait_millisec(cls):        
+    #    return 100
+
     @classmethod
-    def get_wait_millisec(cls):        
-        return 100
+    def get_wait_millisec(cls, type_desc):        
+        millsec_type_dic = {"NORMAL": 100, "ELECTION": 1000}
+        return millsec_type_dic[type_desc]
 
     #SCR_RECT = Rect(0, 0, 640, 480)
     @classmethod
