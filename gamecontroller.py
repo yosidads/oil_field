@@ -16,79 +16,102 @@ class GameController():
 
 class BigMapController(GameController):
 
-    def __init__(self):
-        GameController.__init__(self)
-        self._game_control_phase = self.PH_NORMAL
-        self._very_first_turn_flag = True
-        #self._strategy_acceptable_flag = True
-
-    #GAME_CONTROL_PHASE
-    PH_NORMAL, PH_ELECTION = (0, 1)
-    
+    def _increment_turn(self, game_state):
+        
+        substatus = game_state.get_substatus()
+        
+        if substatus == GameConstUtil.get_bigmap_substatus("COMPLETE"):
+            game_state.increment_turn()
+        else:
+            game_state.increment_substatus()
+                           
     def control_scene(self, screen, game_state):
-        
-        countries = game_state.get_countries()
-        
-        if self._game_control_phase == self.PH_NORMAL:
-            print "### 1"
-            if screen.get_strategy_acceptable_flag():
-                print "### 2"
-                #Increment the turn to start the strategy for the country.
-                #However, the very first turn of the game should not increment the turn.
-                if not (self._very_first_turn_flag):
-                    print "### 3"
-                    #If the strategy execution on BigMap for the player is over, then strategy screen should start.  
-                    if countries[game_state.get_turn()]["HUMAN_CONTROLLED"] and not (game_state.get_strategy_done_flag()):
-                        game_state.set_status(GameConstUtil.get_game_status("STRATEGY_EXEC"))
-                        
-                    else:
-                        game_state.set_strategy_done_flag(False)
-                        game_state.increment_turn()
 
-                self._very_first_turn_flag = False
-                    
-                ################################################################
-                #Strategy Execution....
-                ################################################################
-                country = countries[game_state.get_turn()]
-                if country["HUMAN_CONTROLLED"]:
-                    print "### 4"
-                    game_date = game_state.get_game_date()
-                    election_date = game_state.get_election_date()
-                    #print "game_year %d | election year %d | game season %d | election season %d" % (game_date["YEAR"], election_date["YEAR"], game_date["SEASON"], election_date["SEASON"])
-                    
-                    #Election
-                    if game_date["YEAR"] == election_date["YEAR"] and game_date["SEASON"] == election_date["SEASON"]:
-                        your_vote = round(country["SUPPORT_RATE"] * random.uniform(0.6, 1.2), 1)
-                        if your_vote > 100: 
-                            your_vote = 100
-                        opponent_vote = round((100 - your_vote) * random.uniform(0.4, 0.8), 1)
-                        if your_vote == opponent_vote:
-                            your_vote += 1.0
-                        invalid_vote = 100 - your_vote - opponent_vote
-                        if your_vote < opponent_vote:
-                            announcement_msg = "You lost... You are no longer our president."
-                        else:
-                            announcement_msg = "Congratulations! You have another 4 years."
+        countries = game_state.get_countries()
+        country = countries[game_state.get_turn()]
+        message = {"MESSAGE": "", "SEVERITY": GameConstUtil.get_game_event("N/A")}
+        
+        #Increment Turn
+        #Pre-Initial state is always incremented to Initial here. Never goes further.
+        self._increment_turn(game_state)
+        
+        substatus = game_state.get_substatus()
+        
+        #-----------------------------------------------------------------------
+        #Initial state of one turn
+        #-----------------------------------------------------------------------
+        if substatus == GameConstUtil.get_bigmap_substatus("INITIAL"):
+            message = {"MESSAGE": "", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}
+        #-----------------------------------------------------------------------
+        #Election announce! (HUMAN ONLY)
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("ELECTION_ANNOUNCE") and game_state.is_human_turn() and game_state.is_election():
+            message = {"MESSAGE": "The election day has come!", "SEVERITY": GameConstUtil.get_game_event("ELECTION")}      
+        #Election computation (HUMAN ONLY)
+        elif substatus == GameConstUtil.get_bigmap_substatus("ELECTION_REPORT") and game_state.is_human_turn() and game_state.is_election():
+            your_vote = round(country["SUPPORT_RATE"] * random.uniform(0.6, 1.2), 1)
+            if your_vote > 100: 
+                your_vote = 100
+            opponent_vote = round((100 - your_vote) * random.uniform(0.4, 0.8), 1)
+            if your_vote == opponent_vote:
+                opponent_vote -= 1.0
+            invalid_vote = 100 - your_vote - opponent_vote
+
+            message_text =  "Your Vote... " + str(your_vote) + "%\n" + "Opponent Vote... " + str(opponent_vote) + "%\n" + "Invalid Vote... " + str(invalid_vote) + "%"
+            message = {"MESSAGE": message_text, "SEVERITY": GameConstUtil.get_game_event("ELECTION")}
+            
+            #Record the result
+            election_result = [your_vote, opponent_vote, invalid_vote]
+            game_state.set_election_result(election_result)
+        #-----------------------------------------------------------------------
+        #Election result announce! (HUMAN ONLY)
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("ELECTION_RESULT") and game_state.is_human_turn() and game_state.is_election():
+            #Retrieve the result
+            election_result = game_state.get_election_result()
+            
+            your_vote = election_result[0]
+            opponent_vote = election_result[1]
+            
+            if your_vote < opponent_vote:
+                message_text= "You lost... You are no longer our president."
+                message = {"MESSAGE": message_text, "SEVERITY": GameConstUtil.get_game_event("ERROR")}
+            else:
+                message_text= "Congratulations! People let you lead the country for another 4 years."
+                message = {"MESSAGE": message_text, "SEVERITY": GameConstUtil.get_game_event("ELECTION")}
+        #-----------------------------------------------------------------------
+        #Strategy (HUMAN ONLY)
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("IN_STRATEGY") and game_state.is_human_turn():
+            message = {"MESSAGE": "In strategy...", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}      
+        #-----------------------------------------------------------------------
+        #Strategy (COMPUTER)
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("IN_STRATEGY") and not (game_state.is_human_turn()):
+            message = {"MESSAGE": "In strategy...", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}      
+        #-----------------------------------------------------------------------
+        #War announce
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("WAR_ANNOUNCE"):
+            message = {"MESSAGE": "War Announce...", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}      
+        #-----------------------------------------------------------------------
+        #War report
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("WAR_REPORT"):
+            message = {"MESSAGE": "War Report...", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}      
+        #-----------------------------------------------------------------------
+        #War result announce
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("WAR_RESULT"):
+            message = {"MESSAGE": "War Result...", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}      
+        #-----------------------------------------------------------------------
+        #Turn completion
+        #-----------------------------------------------------------------------
+        elif substatus == GameConstUtil.get_bigmap_substatus("COMPLETE"):
+            message = {"MESSAGE": "Complete. Next Turn...", "SEVERITY": GameConstUtil.get_game_event("NORMAL")}      
+        
+        game_state.set_screen_message(message)
                             
-                        msg = "The election has started!\n" \
-                                + "---Election Result---\nYour opponent.........." + str(opponent_vote) + "%\n" \
-                                + "Your vote.........." + str(your_vote) + "%\n" \
-                                + "Invalid vote.........." + str(invalid_vote) + "%\n" \
-                                + announcement_msg 
-                        result = {"MESSAGE": msg, "RESULT":GameConstUtil.get_game_event("ELECTION")}
-                        
-                        #self._game_control_phase = self.PH_ELECTION
-                    else:
-                        # Check if Oil is found in Oil Derrick    
-                        result = {"MESSAGE": "", "RESULT":GameConstUtil.get_game_event("PLAYER_TURN")}
-                #Non-human players        
-                else:
-                    print "### 5"
-                    result = {"MESSAGE": "Strategy in execution..\nThis is a 2nd line.\nthis is a 3rd line.", "RESULT":GameConstUtil.get_game_event("NORMAL")}
-                    
-                screen.set_strategy_result(result)
-                    
 class StrategyExecController(GameController):
     
     #GAME_CONTROL_PHASE
@@ -109,7 +132,7 @@ class StrategyExecController(GameController):
 
         if self._ready_to_next_flag:
             country_map = game_state.get_countries()[game_state.get_turn()]["COUNTRY_MAP"]
-            #If the number of oil derricks is short, placing a new oil derrick.
+            #If the number of oil derricks is not enough, placing a new oil derrick.
             if country_map.get_num_of_active_oil_derrick() < GameConstUtil.get_num_of_oil_derrick():
                 #self._status_reserved = game_state.get_status()
                 self._game_control_phase = self.PH_OIL_DERRICK
@@ -117,9 +140,9 @@ class StrategyExecController(GameController):
                 #game_state.set_status(GameConstUtil.get_game_status("STRATEGY_EXEC"))
             else:
                 self._ready_to_next_flag = False
-                #print "###HERE: stauts_reserved=%d" % self._status_reserved
                 game_state.set_status(self._status_reserved)
                 #game_state.increment_turn()
+                #set the flag to mark the completion of STRATEGY_EXEC mode
                 game_state.set_strategy_done_flag(True)
          
     def control_scene(self, screen, game_state):

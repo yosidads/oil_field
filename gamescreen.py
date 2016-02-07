@@ -69,7 +69,6 @@ class BigMapScreen(GameScreen):
         GameScreen.__init__(self)
 
         self._strategy_acceptable_flag = True
-        #self._ready_to_next_flag = False
                 
         self._sprite_capitals = []
         for n in range(4):
@@ -155,102 +154,82 @@ class BigMapScreen(GameScreen):
         capital3.update(80, 200)
         capital3.draw(screen)
         
-    def _draw_message_screen(self, screen, game_state):
+    def _display_message(self, screen, game_state):
         ########################################################################
         #Narration            
         ########################################################################
         
         #Display Country Name
-        countries = game_state.get_countries()
-
-        country_name = "[" + countries[game_state.get_turn()]["NAME"] + "]"
-        country_font = pygame.font.SysFont(None, 20)
-        country_space = country_font.render(country_name, False, countries[game_state.get_turn()]["COLOR"])
-        screen.blit(country_space, (40, 320))          
-        
-        #Narration        
-        msg_color = GameConstUtil.get_color("WHITE")    
-        
-        if self._strategy_acceptable_flag:
-            pygame.time.wait(GameConstUtil.get_wait_millisec("NORMAL"))
- 
-            result = self._strategy_result
-            if result["RESULT"] == GameConstUtil.get_game_event("NORMAL"):
-                msg_color = GameConstUtil.get_color("WHITE")
-                game_state.set_sound_to_play(game_state.get_sounds()["BEEP"])
-                game_state.set_screen_message_wait(GameConstUtil.get_wait_millisec("NORMAL"))
-            elif result["RESULT"] == GameConstUtil.get_game_event("PLAYER_TURN"):
-                msg_color = GameConstUtil.get_color("CYAN")
-                game_state.set_sound_to_play(game_state.get_sounds()["BEEP"])
-                game_state.set_screen_message_wait(GameConstUtil.get_wait_millisec("NORMAL"))
-            elif result["RESULT"] == GameConstUtil.get_game_event("ELECTION"):
-                msg_color = GameConstUtil.get_color("CYAN")
-                game_state.set_sound_to_play(game_state.get_sounds()["BEEP"])
-                game_state.set_screen_message_wait(GameConstUtil.get_wait_millisec("ELECTION"))
-            else:
-                msg_color = GameConstUtil.get_color("RED")
-             
-            #No more strategy is acceptable and not ready to next until the message is fully populated.   
-            self._strategy_acceptable_flag = False
-            #self._ready_to_next_flag = False
+        if game_state.get_substatus() >= GameConstUtil.get_bigmap_substatus("INITIAL"):            
+            countries = game_state.get_countries()
+    
+            country_name = "[" + countries[game_state.get_turn()]["NAME"] + "]"
+            country_font = pygame.font.SysFont(None, 20)
+            country_space = country_font.render(country_name, False, countries[game_state.get_turn()]["COLOR"])
+            screen.blit(country_space, (40, 320))  
             
-            self._narration_msgs = result["MESSAGE"].split("\n")  
-              
-            msg_str = ""
-        else:
-            game_state.set_sound_to_play(None)     
-            msg_str = ""
-            for n in range(self._current_narration_line + 1):
-                msg_str += self._narration_msgs[n]
-                msg_str += "\n"
+            if game_state.get_substatus() == GameConstUtil.get_bigmap_substatus("INITIAL"):
+                pygame.time.wait(GameConstUtil.get_wait_millisec("NORMAL"))
                 
-            self._current_narration_line += 1    
-            
+        #Narration        
+
+        screen_message = game_state.get_screen_message()
+        if screen_message["SEVERITY"] == GameConstUtil.get_game_event("N/A"):
+            msg_color = GameConstUtil.get_color("WHITE")
+            game_state.set_sound_to_play(None)
+            wait_millisec = GameConstUtil.get_wait_millisec("N/A")
+        elif screen_message["SEVERITY"] == GameConstUtil.get_game_event("NORMAL"):
+            msg_color = GameConstUtil.get_color("WHITE")
+            game_state.set_sound_to_play(game_state.get_sounds()["BEEP"])
+            wait_millisec = GameConstUtil.get_wait_millisec("NORMAL")
+        elif screen_message["SEVERITY"] == GameConstUtil.get_game_event("WARNING"):
+            msg_color = GameConstUtil.get_color("CYAN")
+            game_state.set_sound_to_play(game_state.get_sounds()["BEEP_WARNING"])
+            wait_millisec = GameConstUtil.get_wait_millisec("NORMAL")
+        elif screen_message["SEVERITY"] == GameConstUtil.get_game_event("ELECTION"):
+            msg_color = GameConstUtil.get_color("CYAN")
+            game_state.set_sound_to_play(game_state.get_sounds()["BEEP_WARNING"])
+            wait_millisec = GameConstUtil.get_wait_millisec("ELECTION")
+        elif screen_message["SEVERITY"] == GameConstUtil.get_game_event("ERROR"):
+            msg_color = GameConstUtil.get_color("RED")
+            game_state.set_sound_to_play(game_state.get_sounds()["BEEP_ERROR"])
+            wait_millisec = GameConstUtil.get_wait_millisec("NORMAL")
+         
+        msg_str = screen_message["MESSAGE"]                 
         msg_rect = pygame.Rect((0, 0, 400, 150))
         msg_font = pygame.font.SysFont(None, 20)
         rendered_text = render_textrect(msg_str, msg_font, msg_rect, msg_color, GameConstUtil.get_color("BLACK"), 0)
             
         screen.blit(rendered_text, (180, 320))          
-        pygame.time.wait(game_state.get_screen_message_wait())
         
-        if self._current_narration_line >= len(self._narration_msgs):       
-            self._init_narration()
-            #ready to accept more message.
-            self._strategy_acceptable_flag = True
-            #self._ready_to_next_flag = True
+        pygame.time.wait(wait_millisec)
     
     ############################################################################
     # Public methods            
     ############################################################################
-    def set_strategy_acceptable_flag(self, flag_value):
-        self._strategy_acceptable_flag = flag_value
-        
-    def get_strategy_acceptable_flag(self):
-        return self._strategy_acceptable_flag
-    
-    #def set_ready_to_next_flag(self, flag_value):
-    #    self._ready_to_next_flag = flag_value
-        
-    #def get_ready_to_next_flag(self):
-    #    return self._ready_to_next_flag
- 
+
     def draw(self, screen, game_state):
         self._draw_backdrop(screen, game_state)
-        self._draw_message_screen(screen, game_state)
+        self._display_message(screen, game_state)
 
 class BigMapIcbmScreen(BigMapScreen):
     
-    def _draw_message_screen(self, screen, game_state):
+    def _display_message(self, screen, game_state):
         pass
 
-class BigMapWarScreen(BigMapScreen):
+class BigMapLandInvasionScreen(BigMapScreen):
     
-    def _draw_message_screen(self, screen, game_state):
+    def _display_message(self, screen, game_state):
+        pass
+
+class BigMapAirStrikeScreen(BigMapScreen):
+    
+    def _display_message(self, screen, game_state):
         pass
 
 class BigMapElectionScreen(BigMapScreen):
     
-    def _draw_message_screen(self, screen, game_state):
+    def _display_message(self, screen, game_state):
         pass
         
 class StrategyExecScreen(GameScreen):

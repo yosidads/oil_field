@@ -29,12 +29,19 @@ class GameState:
         self._election_date = {"YEAR":GameConstUtil.get_game_start_year(), "SEASON":3}
         self._init_countries()
         self._init_rate()
+        self._substatus = 0
 
     def _load_sounds(self):
         self._sounds = {"BEEP": pygame.mixer.Sound("./sound/beep.wav") \
+                        , "BEEP_WARNING": pygame.mixer.Sound("./sound/beep_warning.wav") \
+                        , "BEEP_ERROR": pygame.mixer.Sound("./sound/beep_error.wav") \
                        , "BOMB": pygame.mixer.Sound("./sound/bomb.wav")}
                
     def _init_countries(self):
+        '''
+        Set up the countries for the game.
+        '''
+
         country_0 = {"NAME":"Cucumbania", "COLOR":GameConstUtil.get_color("GREEN"), "DEFEATED":False, "HUMAN_CONTROLLED":False, "COUNTRY_NUM": 0, "CONQUERED_BY": 0, "BORDERING_COUNTRIES":[1, 2, 3]}
         country_1 = {"NAME":"Whalystan", "COLOR":GameConstUtil.get_color("CYAN"), "DEFEATED":False, "HUMAN_CONTROLLED":False, "COUNTRY_NUM": 1, "CONQUERED_BY": 1, "BORDERING_COUNTRIES":[0, 2]}
         country_2 = {"NAME":"Pinkzamia", "COLOR":GameConstUtil.get_color("PURPLE"), "DEFEATED":False, "HUMAN_CONTROLLED":False, "COUNTRY_NUM": 2, "CONQUERED_BY": 2, "BORDERING_COUNTRIES":[0, 1, 3]}
@@ -44,7 +51,6 @@ class GameState:
         #Select a country controlled by the player.
         player_country = random.randint(0, len(self._countries) - 1)
         self._countries[player_country]["HUMAN_CONTROLLED"] = True
-        #print "player_country= %d" % player_country
         
         #Set turn so that a human-played country takes turns at the last. 
         if player_country == len(self._countries) - 1:
@@ -54,10 +60,12 @@ class GameState:
         
         for n in range(len(self._countries)):
             self._init_nation_resources(self._countries[n]) 
-        #print "###: _init_countries: COMPLETED"  
           
     def _init_nation_resources(self, country):
-
+        '''
+        Set up the parameters for each country.
+        '''
+        
         country_Map = CountryMap()
         country_Map.init_nation()
         country["COUNTRY_MAP"] = country_Map
@@ -143,6 +151,12 @@ class GameState:
     
     def get_status(self):
         return self._status
+
+    def set_substatus(self, substatus):
+        self._substatus = substatus    
+    
+    def get_substatus(self):
+        return self._substatus
     
     def get_game_date(self):
         return self._game_date
@@ -157,7 +171,7 @@ class GameState:
         return self._countries    
     
     def increment_turn(self):
-        if self._countries[self._turn]["HUMAN_CONTROLLED"]:
+        if self.is_human_turn():
             #change game season and year
             self._increment_game_date()
             #change new oil exchange rage, price.
@@ -175,6 +189,12 @@ class GameState:
             #If the country is already defeated, skip it
             if self._countries[self._turn]["DEFEATED"] == False:
                 break 
+    
+        # Initialize Sub-Status
+        self._substatus = 0
+        
+    def increment_substatus(self):
+        self._substatus += 1
         
     def get_turn(self):
         return self._turn
@@ -208,13 +228,40 @@ class GameState:
         
     def get_strategy_done_flag(self):
         return self._strategy_done_flag
-        
+    
+    '''    
     def set_screen_message_wait(self, wait_millisec):
         self._screen_message_wait = wait_millisec
         
     def get_screen_message_wait(self):
         return self._screen_message_wait
+    '''
+   
+    def is_election(self):
+        if self._game_date["YEAR"] == self._election_date["YEAR"] and self._game_date["SEASON"] == self._election_date["SEASON"]:
+            return True
+        
+        return False
 
+    def is_human_turn(self):
+        country = self._countries[self._turn]
+        if country["HUMAN_CONTROLLED"]:
+            return True
+        
+        return False
+
+    def set_screen_message(self, message):
+        self._screen_message = message
+        
+    def get_screen_message(self):
+        return self._screen_message
+    
+    def set_election_result(self, result):
+        self._election_result = result
+    
+    def get_election_result(self):
+        return self._election_result
+    
     ############################
     # Key input-related
     ############################
@@ -298,6 +345,7 @@ class MapObject:
 class CountryMap:
     '''
     Represents a country whole map.
+    Holds MapObject as needed.
     '''
     def __init__(self):
         self._map_objects = []

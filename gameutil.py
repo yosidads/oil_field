@@ -17,9 +17,16 @@ class GameConstUtil():
         return game_status_dic[status]
 
     @classmethod
+    def get_bigmap_substatus(cls, status):        
+        game_status_dic = {"PRE_INITIAL":0, "INITIAL": 1, "ELECTION_ANNOUNCE":2, "ELECTION_REPORT":3, "ELECTION_RESULT": 4 \
+                           , "IN_STRATEGY":5 , "WAR_ANNOUNCE":6, "WAR_REPORT":7, "WAR_RESULT": 8, "COMPLETE": 9}
+        
+        return game_status_dic[status]
+
+    @classmethod
     def get_game_event(cls, event):        
         game_event_dic = {"NORMAL":0, "WAR_OUTBREAK":1, "OIL_FOUND":2, "COUP_OUTBREAK":3 \
-                           , "ICBM_LAUNCH":4, "PLAYER_TURN":5, "ERROR":6, "ELECTION":7}
+                           , "ICBM_LAUNCH":4, "PLAYER_TURN":5, "ERROR":6, "ELECTION":7, "WARNING": 8, "N/A": 9}
         
         return game_event_dic[event]            
    
@@ -39,7 +46,7 @@ class GameConstUtil():
 
     @classmethod
     def get_wait_millisec(cls, type_desc):        
-        millsec_type_dic = {"NORMAL": 100, "ELECTION": 1000}
+        millsec_type_dic = {"N/A": 0, "NORMAL": 500, "ELECTION": 2000}
         return millsec_type_dic[type_desc]
 
     #SCR_RECT = Rect(0, 0, 640, 480)

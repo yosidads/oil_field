@@ -108,7 +108,7 @@ class GameLauncher:
                     self._init_game()
             ##############################################################
             # User Key Input Handling
-            # Numeric inpur is accepted. 
+            # Numeric input is accepted. 
             # Carriage Return confirms the input.
             ##############################################################
             elif event.type == KEYDOWN and (K_0 <= event.key <= K_9):
